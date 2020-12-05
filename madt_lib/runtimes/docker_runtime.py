@@ -406,6 +406,25 @@ def fl_create(fl_yaml_dict):
     os.system("footloose create")
     os.system("pwd")
 
+def set_net(net_setup_commands_each_node):
+    dc = docker.from_env()
+
+    for node in net_setup_commands_each_node:
+        network_setup_commands = net_setup_commands_each_node[node]
+        c = dc.containers.get('cluster-' + node + '0')
+        if network_setup_commands:
+            network_setup_cmd = 'sh -c "' + " && ".join(network_setup_commands) + ';"'
+            print(network_setup_cmd)
+            (exit_code, out) = c.exec_run(network_setup_cmd)
+            if exit_code == 0:
+                print('networking setup ok', flush=True, end='; ')
+            else:
+                print('\nERROR WHILE SETTING UP NETWORKING\nReturn code: {0}\nOutput: {1}'.format(exit_code, out),
+                      flush=True)
+
+        else:
+            print('No network setup')
+
 #fl
 def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10, default_tc_options={}):
     lab_config = utils.load_lab_config(lab_path)
@@ -449,7 +468,9 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
 
 
     print('setting up containers...', flush=True)
+    network_setup_commands = {}
     for node, config in lab_config['nodes'].items():
+        network_setup_commands[node] = []
         machine = dict()
         machines_list.append(machine)
 
@@ -457,6 +478,7 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
         machine_spec = dict()
         machine['spec'] = machine_spec
         machine_spec['backend'] = 'docker'
+        machine_spec['privileged'] = True
         machine_spec['portMappings'] = [{'containerPort': 22}]
 
 
@@ -497,12 +519,13 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
             #  'version': dc.api._version,
         #  }
 
-        #  if not config['enableInternet']:
-            #  first_network = next(iter(config['networks']), None)
-            #  if first_network is not None:
-                #  create_kwargs['network'] = docker_networks[first_network].name
-        #  else:
-            #  first_network = None
+        create_kwargs = {}
+        if not config['enableInternet']:
+            first_network = next(iter(config['networks']), None)
+            if first_network is not None:
+                create_kwargs['network'] = docker_networks[first_network].name
+        else:
+            first_network = None
 
         #  if not config['isRouter']:
             #  # -e - exist anything, -f exist and regular file, -S exist and socket
@@ -552,16 +575,17 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
         #  c.start()
         #  print(c.name, c.short_id, flush=True)
 
-        #  network_setup_commands = []
-        #  # todo: fix default route on gateway
-        #  i = 1 if config['enableInternet'] else 0
-        #  for network, ip in config['networks'].items():
+        machine_spec['networks'] = []
+        # todo: fix default route on gateway
+        i = 1 if config['enableInternet'] else 0
+        for network, ip in config['networks'].items():
+            machine_spec['networks'].append('MADT_basic_tutorial_' + network)
             #  if not network == first_network:
                 #  docker_networks[network].connect(c)
                 #  print('connected to '+network, flush=True, end='; ')
 
-            #  # network_setup_cmd += "ip addr flush eth{0}; ip addr add {1} dev eth{0}; ".format(i, ip)
-            #  network_setup_commands.append("ip addr add {1} dev eth{0}".format(i, ip))
+            # network_setup_cmd += "ip addr flush eth{0}; ip addr add {1} dev eth{0}; ".format(i, ip)
+            network_setup_commands[node].append("ip addr add {1} dev eth{0}".format(i, ip))
 
             #  if 'nat_net' in config and network == config['nat_net']:
                 #  network_setup_commands.append("iptables -t nat -A POSTROUTING -o eth{0} -j MASQUERADE".format(i))
@@ -624,5 +648,6 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
 
     fl_yaml_dict['machines'] = machines_list
     fl_create(fl_yaml_dict)
+    set_net(network_setup_commands)
 
     return ret, killed_routers

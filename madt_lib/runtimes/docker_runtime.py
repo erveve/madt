@@ -426,6 +426,12 @@ def set_net(net_setup_commands_each_node):
         else:
             print('No network setup')
 
+def create_image_with_entryp(image_name, entrypoint):
+    if entrypoint == None:
+        return image_name
+    os.system("madt_lib/create_image_with_entryp.sh " + image_name + " '" + entrypoint + "'")
+    return 'entrypoint_' + image_name
+
 #fl
 def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10, default_tc_options={}):
     lab_config = utils.load_lab_config(lab_path)
@@ -560,6 +566,11 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
 
             #  create_kwargs['entrypoint'] = new_entrypoint
 
+        has_custom_entrypoint = 'entrypoint' in config['options']
+        entrypoint = None
+        if has_custom_entrypoint:
+            entrypoint = config['options']['entrypoint']
+        machine_spec['image'] = create_image_with_entryp(image_name, entrypoint)
         #  c = dc.containers.create(**create_kwargs)
 
         #  for path, file in config['files'].items():

@@ -9,7 +9,7 @@ def main():
     server = madt.create_node('server', image=image)
     clients = madt.generate_nodes('client', 6, image=image,
                                   #  entrypoint='sh -c "while true; do wget -O - -T 3 $SERVER; sleep 1; done"')
-                                  entrypoint='sh -c "while true; do sleep 1; done"')
+          entrypoint='sh -c "while true; do touch /testfile ; sleep 1; done"')
 
     routers = madt.generate_nodes('router', 3)
     madt.create_subnet('subnet1', (routers[0], *clients[:3]))

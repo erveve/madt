@@ -1,6 +1,6 @@
 import docker
 import os
-from random import choice
+from random import choice, randint
 import time
 import shutil
 import yaml
@@ -432,6 +432,44 @@ def create_image_with_entryp(image_name, entrypoint):
     os.system("madt_lib/create_image_with_entryp.sh " + image_name + " '" + entrypoint + "'")
     return 'entrypoint_' + image_name
 
+def create_image_with_opts(image_name, node_name, opts):
+    has_opts = False
+    os.system('rm opts_Dockerfile')
+    dock_file = open("opts_Dockerfile", "w")
+
+    dock_file.write('FROM {0}\n'.format(image_name))
+    for opt in opts:
+        has_opts = True
+        if opt == 'ENTRYPOINT':
+            entryp = opts[opt]
+            dock_file.write('ENTRYPOINT {0}\n'.format(entryp))
+        if opt == 'ADD':
+            for one_add in opts[opt]:
+                file_content = one_add['file']
+                path = one_add['path']
+
+                filename = "file_with_content" + str(randint(0, 1000000))
+                file = open(filename, "w")
+                file.write(file_content)
+                file.flush()
+                file.close()
+
+                dock_file.write('ADD {0} {1}\n'.format(filename, path))
+
+
+    if has_opts:
+        dock_file.flush()
+        image_name = 'opts_' + image_name + node_name
+        print('Dock file is')
+        os.system('cat opts_Dockerfile')
+        print('cmd is')
+        print('docker build -t {0} -f opts_Dockerfile .'.format(image_name))
+        os.system('docker build -t {0} -f opts_Dockerfile .'.format(image_name))
+
+    dock_file.close()
+    return image_name
+
+
 #fl
 def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10, default_tc_options={}):
     lab_config = utils.load_lab_config(lab_path)
@@ -567,16 +605,27 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
             #  create_kwargs['entrypoint'] = new_entrypoint
 
         has_custom_entrypoint = 'entrypoint' in config['options']
+        opts = dict() 
         entrypoint = None
         if has_custom_entrypoint:
             entrypoint = config['options']['entrypoint']
-        machine_spec['image'] = create_image_with_entryp(image_name, entrypoint)
+            opts['ENTRYPOINT'] = entrypoint
+
+        #  machine_spec['image'] = create_image_with_entryp(image_name, entrypoint)
+
+
         #  c = dc.containers.create(**create_kwargs)
 
         #  for path, file in config['files'].items():
             #  dirname, filename = os.path.split(path)
             #  utils.DynamicTar.from_str(filename, file).send_to_container(c, dirname)
             #  print(path, 'loaded', flush=True, end='; ')
+        opts['ADD'] = []
+        for path, file in config['files'].items():
+            opts['ADD'].append({'path' : path, 'file' : file})
+            
+
+        machine_spec['image'] = create_image_with_opts(image_name, node, opts)
 
         #  for path, b64 in config['directories'].items():
             #  base_dir = os.path.split(path)[0]

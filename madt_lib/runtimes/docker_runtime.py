@@ -592,19 +592,19 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
 
             #  i += 1
 
-        #  if config['routes']:
-            #  for subnet, gateway in config['routes'].items():
-                #  if subnet == 'default':
-                    #  if config['enableInternet']:
-                        #  subnet = lab_config['subnet']
-                    #  else:
-                        #  network_setup_commands.append("ip route replace default via {0}".format(gateway))
-                        #  continue
+        if config['routes']:
+            for subnet, gateway in config['routes'].items():
+                if subnet == 'default':
+                    if config['enableInternet']:
+                        subnet = lab_config['subnet']
+                    else:
+                        network_setup_commands_n[node].append("ip route replace default via {0}".format(gateway))
+                        continue
 
-                #  network_setup_commands.append(
-                    #  "ip route add {0} via {1}".format(subnet, gateway))
-        #  elif not config['enableInternet']:
-            #  network_setup_commands.append("ip route del default")
+                network_setup_commands_n[node].append(
+                    "ip route add {0} via {1}".format(subnet, gateway))
+        elif not config['enableInternet']:
+            network_setup_commands_n[node].append("ip route del default")
 
         #  if network_setup_commands:
             #  network_setup_cmd = 'sh -c "' + " && ".join(network_setup_commands) + ';"'

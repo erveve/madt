@@ -443,6 +443,10 @@ def create_image_with_opts(image_name, node_name, opts):
         if opt == 'ENTRYPOINT':
             entryp = opts[opt]
             dock_file.write('ENTRYPOINT {0}\n'.format(entryp))
+        if opt == 'ENV':
+            for var, val in opts[opt].items():
+                print('var and val: {0}={1}'.format(var, val))
+                dock_file.write('ENV {0}={1}\n'.format(var, val))
         if opt == 'ADD':
             for one_add in opts[opt]:
                 file_content = one_add['file']
@@ -611,6 +615,9 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
             entrypoint = config['options']['entrypoint']
             opts['ENTRYPOINT'] = entrypoint
 
+        if 'options' in config:
+            if 'environment' in config['options']:
+                opts['ENV'] = config['options']['environment']
         #  machine_spec['image'] = create_image_with_entryp(image_name, entrypoint)
 
 

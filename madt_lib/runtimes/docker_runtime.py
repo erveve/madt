@@ -569,6 +569,8 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
             #  'cap_add': ["NET_ADMIN"],
             #  'version': dc.api._version,
         #  }
+        machine_spec['volumes'] = [{'type': 'bind', 'source': socket_dir,
+                                    'destination': '/lab', 'readOnly': False}]
 
         if not config['enableInternet']:
             first_network = next(iter(config['networks']), None)

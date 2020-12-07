@@ -407,6 +407,12 @@ def fl_create(fl_yaml_dict):
     os.system("footloose create")
     os.system("pwd")
 
+def exec_entrypoints(entrypoints):
+    dc = docker.from_env()
+    for node, entryp in entrypoints.items():
+        c = dc.containers.get('cluster-' + node + '0')
+        c.exec_run(entryp, detach=True)
+
 def set_net(net_setup_commands_each_node):
     dc = docker.from_env()
 
@@ -426,12 +432,6 @@ def set_net(net_setup_commands_each_node):
         else:
             print('No network setup')
 
-def create_image_with_entryp(image_name, entrypoint):
-    if entrypoint == None:
-        return image_name
-    os.system("madt_lib/create_image_with_entryp.sh " + image_name + " '" + entrypoint + "'")
-    return 'entrypoint_' + image_name
-
 def create_image_with_opts(image_name, node_name, opts):
     has_opts = False
     os.system('rm opts_Dockerfile')
@@ -440,9 +440,6 @@ def create_image_with_opts(image_name, node_name, opts):
     dock_file.write('FROM {0}\n'.format(image_name))
     for opt in opts:
         has_opts = True
-        if opt == 'ENTRYPOINT':
-            entryp = opts[opt]
-            dock_file.write('ENTRYPOINT {0}\n'.format(entryp))
         if opt == 'ENV':
             for var, val in opts[opt].items():
                 print('var and val: {0}={1}'.format(var, val))
@@ -518,6 +515,7 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
 
     print('setting up containers...', flush=True)
     network_setup_commands_n = {}
+    entrypoints = {}
     for node, config in lab_config['nodes'].items():
         if config['isRouter']:
             continue
@@ -615,12 +613,11 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
         entrypoint = None
         if has_custom_entrypoint:
             entrypoint = config['options']['entrypoint']
-            opts['ENTRYPOINT'] = entrypoint
+            entrypoints[node] = entrypoint
 
         if 'options' in config:
             if 'environment' in config['options']:
                 opts['ENV'] = config['options']['environment']
-        #  machine_spec['image'] = create_image_with_entryp(image_name, entrypoint)
 
 
         #  c = dc.containers.create(**create_kwargs)
@@ -807,6 +804,7 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
     fl_yaml_dict['machines'] = machines_list
     fl_create(fl_yaml_dict)
     set_net(network_setup_commands_n)
+    exec_entrypoints(entrypoints)
 
     print('...done, waiting for routing...', flush=True)
 

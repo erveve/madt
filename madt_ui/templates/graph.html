@@ -260,7 +260,8 @@
           cy.nodes().forEach((node) =>{
             if (typeof node.data('network') !== "undefined") return
 
-            let full_name = prefix + node.id();
+            let full_name = prefix + '-' + node.id() + '0';
+	    console.log(full_name)
 
             if (full_name in messages) {
               let msg = messages[full_name];

@@ -280,7 +280,7 @@ def check_routing(lab_config, prefix, dc=docker.from_env()):
     cmd = "sh -c \"{0}\"".format(cmd)
 
     #  container = dc.containers.get(prefix+base_node)
-    container = dc.containers.get('cluster-' + base_node + '0')
+    container = dc.containers.get(prefix + '-' + base_node + '0')
     status, output = container.exec_run(cmd)
     print(output.decode(), flush=True)
 
@@ -407,18 +407,18 @@ def fl_create(fl_yaml_dict):
     os.system("footloose create")
     os.system("pwd")
 
-def exec_entrypoints(entrypoints):
+def exec_entrypoints(entrypoints, prefix):
     dc = docker.from_env()
     for node, entryp in entrypoints.items():
-        c = dc.containers.get('cluster-' + node + '0')
+        c = dc.containers.get(prefix + '-' + node + '0')
         c.exec_run(entryp, detach=True)
 
-def set_net(net_setup_commands_each_node):
+def set_net(net_setup_commands_each_node, prefix):
     dc = docker.from_env()
 
     for node in net_setup_commands_each_node:
         network_setup_commands = net_setup_commands_each_node[node]
-        c = dc.containers.get('cluster-' + node + '0')
+        c = dc.containers.get(prefix + '-' + node + '0')
         if network_setup_commands:
             network_setup_cmd = 'sh -c "' + " && ".join(network_setup_commands) + ';"'
             print(network_setup_cmd)
@@ -432,7 +432,7 @@ def set_net(net_setup_commands_each_node):
         else:
             print('No network setup')
 
-def create_image_with_opts(image_name, node_name, opts):
+def create_image_with_opts(image_name, host_name, opts):
     has_opts = False
     os.system('rm opts_Dockerfile')
     dock_file = open("opts_Dockerfile", "w")
@@ -457,15 +457,16 @@ def create_image_with_opts(image_name, node_name, opts):
 
                 dock_file.write('ADD {0} {1}\n'.format(filename, path))
 
+    dock_file.write('ENV HOSTNAME={0}\n'.format(host_name))
 
-    if has_opts:
-        dock_file.flush()
-        image_name = 'opts_' + image_name + node_name
-        print('Dock file is')
-        os.system('cat opts_Dockerfile')
-        print('cmd is')
-        print('docker build -t {0} -f opts_Dockerfile .'.format(image_name))
-        os.system('docker build -t {0} -f opts_Dockerfile .'.format(image_name))
+    dock_file.flush()
+    image_name = 'opts_' + image_name + host_name
+    image_name = image_name.lower().replace('-','_')#CONTAINERS NAMING BOTH INSANE IN MADT AND FOOTLOOSE - THIS HACK LET DO DOCKER BUILD WITHOUT NAMING ERRORS
+    print('Dock file is')
+    os.system('cat opts_Dockerfile')
+    print('cmd is')
+    print('docker build -t {0} -f opts_Dockerfile .'.format(image_name))
+    os.system('docker build -t {0} -f opts_Dockerfile .'.format(image_name))
 
     dock_file.close()
     return image_name
@@ -508,7 +509,7 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
     ret = []
 
     fl_yaml_dict =  {
-             'cluster': {'name': 'cluster', 'privateKey': 'cluster-key'}
+             'cluster': {'name': prefix, 'privateKey': 'cluster-key'}
                     }
     machines_list = []
 
@@ -538,7 +539,7 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
         machine_spec['image'] = image_name
         machine_spec['name'] = node + '%d'
 
-        ret.append(node)
+        ret.append('-' + node + '0')
 
         #  if image_name in image_cache:
             #  image = image_cache[image_name]
@@ -609,7 +610,7 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
             #  create_kwargs['entrypoint'] = new_entrypoint
 
         has_custom_entrypoint = 'entrypoint' in config['options']
-        opts = dict() 
+        opts = dict()
         entrypoint = None
         if has_custom_entrypoint:
             entrypoint = config['options']['entrypoint']
@@ -629,9 +630,8 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
         opts['ADD'] = []
         for path, file in config['files'].items():
             opts['ADD'].append({'path' : path, 'file' : file})
-            
 
-        machine_spec['image'] = create_image_with_opts(image_name, node, opts)
+        machine_spec['image'] = create_image_with_opts(image_name, '-' + node + '0', opts)
 
         #  for path, b64 in config['directories'].items():
             #  base_dir = os.path.split(path)[0]
@@ -721,7 +721,7 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
             **config['options'],
             'image': image,
             'hostname': node,
-            'name': prefix + node,
+            'name': prefix + '-' + node + '0',
             'volumes': {socket_dir: {'bind': '/lab', 'mode':'rw'}},
             'detach': True,
             'cap_add': ["NET_ADMIN"],
@@ -803,8 +803,8 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
 
     fl_yaml_dict['machines'] = machines_list
     fl_create(fl_yaml_dict)
-    set_net(network_setup_commands_n)
-    exec_entrypoints(entrypoints)
+    set_net(network_setup_commands_n, prefix)
+    exec_entrypoints(entrypoints, prefix)
 
     print('...done, waiting for routing...', flush=True)
 

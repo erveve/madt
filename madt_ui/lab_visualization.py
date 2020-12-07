@@ -36,7 +36,7 @@ async def get_messages():
         lab_config = json.load(config_file)
 
     for name, config in lab_config['nodes'].items():
-        fullname = lab_prefix + name
+        fullname = lab_prefix + '-' + name + '0'
 
         # print(routers_cache, fullname, config)
         if not config['isRouter']:

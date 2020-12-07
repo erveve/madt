@@ -192,7 +192,7 @@
 
           jgraph.nodes.forEach(node => {
             // console.log(node.name)
-            full_name = '{{ prefix }}' + node.name;
+            full_name = '{{ prefix }}' + '-' + node.name + '0';
 
             if (full_name in messages) {
               // console.log(messages[node.name].text)

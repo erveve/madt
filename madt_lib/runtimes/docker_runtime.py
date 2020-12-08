@@ -411,13 +411,10 @@ def stop_lab(lab_path, prefix, remove=True):
     print('Ready', flush=True)
 
 def fl_create(fl_yaml_dict):
-    print('yaml dict is')
-    print(fl_yaml_dict)
     os.system("rm footloose.yaml")
     f = open("footloose.yaml", 'w')
     yaml.dump(fl_yaml_dict, f)
     os.system("footloose create")
-    os.system("pwd")
 
 def exec_entrypoints(entrypoints, prefix):
     dc = docker.from_env()
@@ -455,7 +452,6 @@ def create_image_with_opts(image_name, host_name, opts):
         has_opts = True
         if opt == 'ENV':
             for var, val in opts[opt].items():
-                print('var and val: {0}={1}'.format(var, val))
                 dock_file.write('ENV {0}={1}\n'.format(var, val))
         if opt == 'ADD':
             for one_add in opts[opt]:
@@ -476,10 +472,6 @@ def create_image_with_opts(image_name, host_name, opts):
     dock_file.flush()
     image_name = 'opts_' + image_name + host_name
     image_name = image_name.lower().replace('-','_')#CONTAINERS NAMING BOTH INSANE IN MADT AND FOOTLOOSE - THIS HACK LET DO DOCKER BUILD WITHOUT NAMING ERRORS
-    print('Dock file is')
-    os.system('cat opts_Dockerfile')
-    print('cmd is')
-    print('docker build -t {0} -f opts_Dockerfile .'.format(image_name))
     os.system('docker build -t {0} -f opts_Dockerfile .'.format(image_name))
 
     dock_file.close()
@@ -556,33 +548,6 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
 
         ret.append('-' + node + '0')
 
-        #  if image_name in image_cache:
-            #  image = image_cache[image_name]
-        #  else:
-
-            #  try:
-                #  image = dc.images.get(image_name)
-            #  except docker.errors.ImageNotFound:
-                #  if ':' in image_name:
-                    #  image_name, tag = image_name.split(':', maxsplit=1)
-                #  else:
-                    #  tag = 'latest'
-
-                #  image = dc.images.pull(image_name, tag=tag)
-
-            #  image_cache[image_name] = image
-
-        #  create_kwargs = {
-            #  'environment': {},
-            #  **config['options'],
-            #  'image': image,
-            #  'hostname': node,
-            #  'name': prefix + node,
-            #  'volumes': {socket_dir: {'bind': '/lab', 'mode':'rw'}},
-            #  'detach': True,
-            #  'cap_add': ["NET_ADMIN"],
-            #  'version': dc.api._version,
-        #  }
         machine_spec['volumes'] = [{'type': 'bind', 'source': socket_dir,
                                     'destination': '/lab', 'readOnly': False}]
 
@@ -590,39 +555,6 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
             first_network = next(iter(config['networks']), None)
         else:
             first_network = None
-
-        #  if not config['isRouter']:
-            #  # -e - exist anything, -f exist and regular file, -S exist and socket
-            #  new_entrypoint = "sh -c 'until [ -e '/lab/lab.sock' ]; do sleep 3; done;"
-
-            #  has_custom_entrypoint = 'entrypoint' in config['options']
-            #  has_custom_cmd = 'command' in config['options']
-
-            #  if image.attrs['Config']['Entrypoint']:
-                #  original_entrypoint = image.attrs['Config']['Entrypoint']
-                #  for i, cmd in enumerate(original_entrypoint[:-1]):
-                    #  # TODO: fix this
-                    #  # this is ugly, we need to find another way,
-                    #  # but docker don't seem to like multiple *sh -c in entrypoint for some reason
-                    #  if cmd[-2:] in ['bash', 'ash', 'sh', '/bin/bash',
-                                    #  '/bin/ash', '/bin/sh'] and \
-                            #  original_entrypoint[i+1] == '-c':
-                        #  original_entrypoint.pop(i)
-                        #  original_entrypoint.pop(i)
-                #  if not has_custom_entrypoint:
-                    #  new_entrypoint += format_entrypoint(original_entrypoint)
-            #  if image.attrs['Config']['Cmd'] and not (has_custom_cmd or has_custom_entrypoint):
-                #  new_entrypoint += format_entrypoint(image.attrs['Config']['Cmd'])
-            #  if has_custom_entrypoint:
-                #  new_entrypoint += format_entrypoint(config['options']['entrypoint'])
-            #  if has_custom_cmd:
-                #  new_entrypoint += format_entrypoint(config['options']['command'])
-
-            #  new_entrypoint += "'"
-
-            #  print('[ EP ]', new_entrypoint, sep='\n')
-
-            #  create_kwargs['entrypoint'] = new_entrypoint
 
         has_custom_entrypoint = 'entrypoint' in config['options']
         opts = dict()
@@ -635,43 +567,32 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
             if 'environment' in config['options']:
                 opts['ENV'] = config['options']['environment']
 
-
-        #  c = dc.containers.create(**create_kwargs)
-
-        #  for path, file in config['files'].items():
-            #  dirname, filename = os.path.split(path)
-            #  utils.DynamicTar.from_str(filename, file).send_to_container(c, dirname)
-            #  print(path, 'loaded', flush=True, end='; ')
         opts['ADD'] = []
         for path, file in config['files'].items():
             opts['ADD'].append({'path' : path, 'file' : file})
 
-        machine_spec['image'], files_to_del = create_image_with_opts(image_name, '-' + node + '0', opts)
 
         #  for path, b64 in config['directories'].items():
             #  base_dir = os.path.split(path)[0]
             #  utils.DynamicTar.from_base64(b64).send_to_container(c, base_dir)
             #  print(path, 'loaded', flush=True, end='; ')
 
-        #  c.start()
-        #  print(c.name, c.short_id, flush=True)
+        machine_spec['image'], files_to_del = create_image_with_opts(image_name, '-' + node + '0', opts)
 
         machine_spec['networks'] = []
         # todo: fix default route on gateway
         i = 1 if config['enableInternet'] else 0
         for network, ip in config['networks'].items():
             machine_spec['networks'].append(prefix + network)
-            #  if not network == first_network:
-                #  docker_networks[network].connect(c)
-                #  print('connected to '+network, flush=True, end='; ')
+            print('connected to '+network, flush=True, end='; ')
 
             # network_setup_cmd += "ip addr flush eth{0}; ip addr add {1} dev eth{0}; ".format(i, ip)
             network_setup_commands_n[node].append("ip addr add {1} dev eth{0}".format(i, ip))
 
-            #  if 'nat_net' in config and network == config['nat_net']:
-                #  network_setup_commands.append("iptables -t nat -A POSTROUTING -o eth{0} -j MASQUERADE".format(i))
+            if 'nat_net' in config and network == config['nat_net']:
+                network_setup_commands_n[node].append("iptables -t nat -A POSTROUTING -o eth{0} -j MASQUERADE".format(i))
 
-            #  i += 1
+            i += 1
 
         if config['routes']:
             for subnet, gateway in config['routes'].items():
@@ -686,19 +607,6 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
                     "ip route add {0} via {1}".format(subnet, gateway))
         elif not config['enableInternet']:
             network_setup_commands_n[node].append("ip route del default")
-
-        #  if network_setup_commands:
-            #  network_setup_cmd = 'sh -c "' + " && ".join(network_setup_commands) + ';"'
-            #  print(network_setup_cmd)
-            #  (exit_code, out) = c.exec_run(network_setup_cmd)
-            #  if exit_code == 0:
-                #  print('networking setup ok', flush=True, end='; ')
-            #  else:
-                #  print('\nERROR WHILE SETTING UP NETWORKING\nReturn code: {0}\nOutput: {1}'.format(exit_code, out),
-                      #  flush=True)
-
-        #  else:
-            #  print('No network setup')
 
         #  if config['tc_options']:
             #  tc_options_cache[c.short_id] = config['tc_options']

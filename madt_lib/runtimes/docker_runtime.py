@@ -372,18 +372,29 @@ def stop_lab(lab_path, prefix, remove=True):
     dc = docker.from_env()
 
     print('killing containers...', flush=True)
-    for name in lab_config['nodes'].keys():
+    images_to_del = []
+    for name, config in lab_config['nodes'].items():
         container_name = prefix + '-' + name + '0'
         try:
             if remove:
-                dc.api.remove_container(container_name, force=True)
+                if config['isRouter']:
+                    dc.api.remove_container(container_name, force=True)
+                if not config['isRouter']:
+                    c = dc.containers.get(container_name)
+                    image = c.attrs['Config']['Image']
+                    images_to_del.append(image)
             else:
                 dc.api.stop(container_name)
             print(name, flush=True, end=' ')
         except docker.errors.NotFound:
             print(name, 'error!', flush=True, end=' ')
+
+    if remove:
+        os.system('footloose delete')
+        for image in images_to_del:
+            dc.images.remove(image)
+
     print('\n...done', flush=True)
-    os.system('footloose delete') 
 
     if remove:
         print('removing nets...', flush=True)
@@ -439,6 +450,7 @@ def create_image_with_opts(image_name, host_name, opts):
     dock_file = open("opts_Dockerfile", "w")
 
     dock_file.write('FROM {0}\n'.format(image_name))
+    files_to_del = []
     for opt in opts:
         has_opts = True
         if opt == 'ENV':
@@ -455,6 +467,7 @@ def create_image_with_opts(image_name, host_name, opts):
                 file.write(file_content)
                 file.flush()
                 file.close()
+                files_to_del.append(filename)
 
                 dock_file.write('ADD {0} {1}\n'.format(filename, path))
 
@@ -470,7 +483,7 @@ def create_image_with_opts(image_name, host_name, opts):
     os.system('docker build -t {0} -f opts_Dockerfile .'.format(image_name))
 
     dock_file.close()
-    return image_name
+    return image_name, files_to_del
 
 
 #fl
@@ -518,6 +531,7 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
     print('setting up containers...', flush=True)
     network_setup_commands_n = {}
     entrypoints = {}
+    files_to_del = []
     for node, config in lab_config['nodes'].items():
         if config['isRouter']:
             continue
@@ -632,7 +646,7 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
         for path, file in config['files'].items():
             opts['ADD'].append({'path' : path, 'file' : file})
 
-        machine_spec['image'] = create_image_with_opts(image_name, '-' + node + '0', opts)
+        machine_spec['image'], files_to_del = create_image_with_opts(image_name, '-' + node + '0', opts)
 
         #  for path, b64 in config['directories'].items():
             #  base_dir = os.path.split(path)[0]
@@ -826,5 +840,7 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
         #  return_code = tcset_api(c_id, tc_options)
         #  print('[ TCSET ]', c_id, 'SUCCESS' if return_code == 0 else 'FAILED')
 
+    for file in files_to_del:
+        os.system('rm ' + file)
 
     return ret, killed_routers

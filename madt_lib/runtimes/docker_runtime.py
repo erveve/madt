@@ -372,16 +372,17 @@ def stop_lab(lab_path, prefix, remove=True):
     dc = docker.from_env()
 
     print('killing containers...', flush=True)
-    #  for name in lab_config['nodes'].keys():
-        #  try:
-            #  if remove:
-                #  dc.api.remove_container(prefix+name, force=True)
-            #  else:
-                #  dc.api.stop(prefix + name)
-            #  print(name, flush=True, end=' ')
-        #  except docker.errors.NotFound:
-            #  print(name, 'error!', flush=True, end=' ')
-    #  print('\n...done', flush=True)
+    for name in lab_config['nodes'].keys():
+        container_name = prefix + '-' + name + '0'
+        try:
+            if remove:
+                dc.api.remove_container(container_name, force=True)
+            else:
+                dc.api.stop(container_name)
+            print(name, flush=True, end=' ')
+        except docker.errors.NotFound:
+            print(name, 'error!', flush=True, end=' ')
+    print('\n...done', flush=True)
     os.system('footloose delete') 
 
     if remove:

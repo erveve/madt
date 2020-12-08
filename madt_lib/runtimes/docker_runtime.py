@@ -513,6 +513,7 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
     killed_routers = []
 
     ret = []
+    ret_tc = [] #helps avoid weird problems with this prefix naming scheme
 
     fl_yaml_dict =  {
              'cluster': {'name': prefix, 'privateKey': 'cluster-key'}
@@ -545,8 +546,6 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
 
         machine_spec['image'] = image_name
         machine_spec['name'] = node + '%d'
-
-        ret.append('-' + node + '0')
 
         machine_spec['volumes'] = [{'type': 'bind', 'source': socket_dir,
                                     'destination': '/lab', 'readOnly': False}]
@@ -608,13 +607,12 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
         elif not config['enableInternet']:
             network_setup_commands_n[node].append("ip route del default")
 
-        #  if config['tc_options']:
-            #  tc_options_cache[c.short_id] = config['tc_options']
-            #  if config['isRouter']:
-                #  killed_routers.append(c.name)
+        if config['tc_options']:
+            tc_options_cache[prefix + '-' + node + '0'] = config['tc_options']
 
-        #  ret.append(c.short_id)
-        #  print('\n', flush=True, end='')
+        ret.append('-' + node + '0')
+        ret_tc.append(prefix + '-' + node + '0')
+        print('\n', flush=True, end='')
 
     for node, config in lab_config['nodes'].items():
         if not config['isRouter']:
@@ -722,6 +720,7 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
                 killed_routers.append(c.name)
 
         ret.append(c.short_id)
+        ret_tc.append(c.short_id)
         print('\n', flush=True, end='')
 
     fl_yaml_dict['machines'] = machines_list
@@ -741,12 +740,12 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
         print('TIMEOUT')
 
     print('...routing ready, applying tc_options...', flush=True)
-    #  for c_id in ret:
-        #  tc_options = tc_options_cache.get(c_id, default_tc_options)
-        #  if not tc_options:
-            #  continue
-        #  return_code = tcset_api(c_id, tc_options)
-        #  print('[ TCSET ]', c_id, 'SUCCESS' if return_code == 0 else 'FAILED')
+    for c_id in ret_tc:
+        tc_options = tc_options_cache.get(c_id, default_tc_options)
+        if not tc_options:
+            continue
+        return_code = tcset_api(c_id, tc_options)
+        print('[ tcset ]', c_id, 'success' if return_code == 0 else 'failed')
 
     for file in files_to_del:
         os.system('rm ' + file)

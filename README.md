@@ -20,7 +20,7 @@ You can combine part of the network (a set of nodes) into a subnet and define ru
 <img src="docs/_static/dynamic_routing.png" width="512">
 
 ## Footloose
-В [madt_lib/runtimes/docker_runtime.py](https://github.com/erveve/madt/blob/fl/madt_lib/runtimes/docker_runtime.py) были заменены процессы запуска контейнеров и их уничтожения с docker на footloose. (Для роутеров был сохранен запуск через docker из-за сложностей с quagga, в ветке [fullfl](https://github.com/erveve/madt/blob/fullfl) запуск осуществляется через footloose). Для запуска в footloose в функции ```start_lab``` создается файл ```footloose.yaml```, где хранится конфигурация контейнеров, далее контейнеры запускаются его с помощью ```footloose create```. Удаляются машины в функции ```stop_lab``` через ```footloose delete```.
+В [madt_lib/runtimes/docker_runtime.py](https://github.com/erveve/madt/blob/fl/madt_lib/runtimes/docker_runtime.py) были заменены процессы запуска контейнеров и их уничтожения с docker на footloose. (Для роутеров был сохранен запуск через docker из-за сложностей с quagga, в ветке fullfl запуск осуществляется через footloose). В функции ```start_lab``` создается файл ```footloose.yaml```, где хранится конфигурация контейнеров, далее контейнеры запускаются с помощью ```footloose create```. Удаляются машины в функции ```stop_lab``` через ```footloose delete```.
 
 ## How to define the model
 

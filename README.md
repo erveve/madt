@@ -43,11 +43,11 @@ Basic example with simple server-client interaction is defined in [tutorial/basi
 ```
    cd ~
    git clone --recursive https://github.com/erveve/madt/
-   git checkout remote/origin/fl
+   cd madt
+   git checkout remotes/origin/fl
    mkdir ~/madt/labs && export MADT_LABS_DIR=$HOME/madt/labs
    mkdir ~/madt/sockets && export MADT_LABS_SOCKETS_DIR=$HOME/madt/sockets
 
-   cd madt
    sudo pip3 install -r ./requirements.txt
    sudo make && sudo make install
 
@@ -72,7 +72,7 @@ Basic example with simple server-client interaction is defined in [tutorial/basi
    
    #start monitoring and dynamic routing
    python3 ./lab.py
-   cd ../monitoring_fl
+   cd ../dynamic_routing
    python3 ./lab.py
 ```
 - Open 127.0.0.1:80

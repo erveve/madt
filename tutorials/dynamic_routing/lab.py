@@ -6,8 +6,8 @@ def main():
 
     image='quay.io/footloose/centos7:0.6.0'
     #  server = madt.create_node('server', image='madt/nginx')
-    server = madt.create_node('server', image=image)
-    clients = madt.generate_nodes('client', 6, image=image,
+    server = madt.create_node('server', image='madt/client')
+    clients = madt.generate_nodes('client', 6, image='madt/pyget',
                                   #  entrypoint='sh -c "while true; do wget -O - -T 3 $SERVER; sleep 1; done"')
           entrypoint='sh -c "while true; do touch /testfile ; sleep 1; done"')
 

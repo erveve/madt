@@ -76,9 +76,9 @@ class Overlay:
             node.add_file(self.zebra_conf_path, 'hostname zebra\npassword zebra\nenable password zebra\nlog file /var/log/zebra/zebra.log\n')
 
         if self.startup_path in node.files:  # detach previous daemon and start new without detaching to keep
-            node.files[self.startup_path] += '&\n ' + self.protocol.lower() + 'd start'  # container running
+            node.files[self.startup_path] += '\n sudo service ' + self.protocol.lower() + 'd start'  # container running
         else:
-            node.add_file(self.startup_path, 'zebra start &\n' + self.protocol.lower() + 'd start')
+            node.add_file(self.startup_path, '#!/bin/sh\nsudo service zebra restart\nsudo service ' + self.protocol.lower() + 'd restart')
 
 
 class RIP_Overlay(Overlay):

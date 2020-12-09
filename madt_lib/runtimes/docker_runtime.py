@@ -377,12 +377,9 @@ def stop_lab(lab_path, prefix, remove=True):
         container_name = prefix + '-' + name + '0'
         try:
             if remove:
-                if config['isRouter']:
-                    dc.api.remove_container(container_name, force=True)
-                if not config['isRouter']:
-                    c = dc.containers.get(container_name)
-                    image = c.attrs['Config']['Image']
-                    images_to_del.append(image)
+                c = dc.containers.get(container_name)
+                image = c.attrs['Config']['Image']
+                images_to_del.append(image)
             else:
                 dc.api.stop(container_name)
             print(name, flush=True, end=' ')
@@ -526,8 +523,6 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
     entrypoints = {}
     files_to_del = []
     for node, config in lab_config['nodes'].items():
-        if config['isRouter']:
-            continue
         network_setup_commands_n[node] = []
         machine = dict()
         machines_list.append(machine)
@@ -555,12 +550,15 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
         else:
             first_network = None
 
-        has_custom_entrypoint = 'entrypoint' in config['options']
+        has_custom_entrypoint = ('entrypoint' in config['options']) or config['isRouter']
         opts = dict()
         entrypoint = None
         if has_custom_entrypoint:
-            entrypoint = config['options']['entrypoint']
-            entrypoints[node] = entrypoint
+            if config['isRouter']:
+                entrypoints[node] = 'sh /etc/quagga/start.sh'
+            else:
+                entrypoint = config['options']['entrypoint']
+                entrypoints[node] = entrypoint
 
         if 'options' in config:
             if 'environment' in config['options']:
@@ -612,115 +610,6 @@ def start_lab(lab_path, prefix, image_prefix='', timeout=3*60, poll_interval=10,
 
         ret.append('-' + node + '0')
         ret_tc.append(prefix + '-' + node + '0')
-        print('\n', flush=True, end='')
-
-    for node, config in lab_config['nodes'].items():
-        if not config['isRouter']:
-            continue
-        print(node, flush=True, end=' ')
-
-        image_name = image_prefix + '/' + config['image'] if image_prefix else config['image']
-
-        if image_name in image_cache:
-            image = image_cache[image_name]
-        else:
-
-            try:
-                image = dc.images.get(image_name)
-            except docker.errors.ImageNotFound:
-                if ':' in image_name:
-                    image_name, tag = image_name.split(':', maxsplit=1)
-                else:
-                    tag = 'latest'
-
-                image = dc.images.pull(image_name, tag=tag)
-
-            image_cache[image_name] = image
-
-        create_kwargs = {
-            'environment': {},
-            **config['options'],
-            'image': image,
-            'hostname': node,
-            'name': prefix + '-' + node + '0',
-            'volumes': {socket_dir: {'bind': '/lab', 'mode':'rw'}},
-            'detach': True,
-            'cap_add': ["NET_ADMIN"],
-            'version': dc.api._version,
-        }
-
-        if not config['enableInternet']:
-            first_network = next(iter(config['networks']), None)
-            if first_network is not None:
-                create_kwargs['network'] = docker_networks[first_network].name
-        else:
-            first_network = None
-
-        c = dc.containers.create(**create_kwargs)
-
-        for path, file in config['files'].items():
-            dirname, filename = os.path.split(path)
-            utils.DynamicTar.from_str(filename, file).send_to_container(c, dirname)
-            print(path, 'loaded', flush=True, end='; ')
-
-        for path, b64 in config['directories'].items():
-            base_dir = os.path.split(path)[0]
-            utils.DynamicTar.from_base64(b64).send_to_container(c, base_dir)
-            print(path, 'loaded', flush=True, end='; ')
-
-        c.start()
-        print(c.name, c.short_id, flush=True)
-
-        network_setup_commands = []
-        # todo: fix default route on gateway
-        i = 1 if config['enableInternet'] else 0
-        for network, ip in config['networks'].items():
-            if not network == first_network:
-                docker_networks[network].connect(c)
-                print('connected to '+network, flush=True, end='; ')
-
-            # network_setup_cmd += "ip addr flush eth{0}; ip addr add {1} dev eth{0}; ".format(i, ip)
-            network_setup_commands.append("ip addr add {1} dev eth{0}".format(i, ip))
-
-            if 'nat_net' in config and network == config['nat_net']:
-                network_setup_commands.append("iptables -t nat -A POSTROUTING -o eth{0} -j MASQUERADE".format(i))
-
-            i += 1
-
-        if config['routes']:
-            for subnet, gateway in config['routes'].items():
-                if subnet == 'default':
-                    if config['enableInternet']:
-                        subnet = lab_config['subnet']
-                    else:
-                        network_setup_commands.append("ip route replace default via {0}".format(gateway))
-                        continue
-
-                network_setup_commands.append(
-                    "ip route add {0} via {1}".format(subnet, gateway))
-        elif not config['enableInternet']:
-            network_setup_commands.append("ip route del default")
-
-        if network_setup_commands:
-            network_setup_cmd = 'sh -c "' + " && ".join(network_setup_commands) + ';"'
-            print(network_setup_cmd)
-            (exit_code, out) = c.exec_run(network_setup_cmd)
-            if exit_code == 0:
-                print('networking setup ok', flush=True, end='; ')
-            else:
-                print('\nERROR WHILE SETTING UP NETWORKING\nReturn code: {0}\nOutput: {1}'.format(exit_code, out),
-                      flush=True)
-
-        else:
-            print('No network setup')
-
-        if config['tc_options']:
-            tc_options_cache[c.short_id] = config['tc_options']
-            if config['isRouter']:
-                killed_routers.append(c.name)
-
-        ret.append(c.short_id)
-        ret_tc.append(c.short_id)
         print('\n', flush=True, end='')
 
     fl_yaml_dict['machines'] = machines_list

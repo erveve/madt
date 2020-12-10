@@ -33,7 +33,7 @@ We use madt_lib Python API to configure a model. It provides four classes for de
 Basic example with simple server-client interaction is defined in [tutorial/basic](https://github.com/erveve/madt/blob/fl/tutorials/basic/) folder.
 
 ## Footloose
-В [madt_lib/runtimes/docker_runtime.py](https://github.com/erveve/madt/blob/fl/madt_lib/runtimes/docker_runtime.py) были заменены процессы запуска контейнеров и их уничтожения с docker на footloose. (Для роутеров был сохранен запуск через docker из-за сложностей с quagga, в ветке fullfl - через footloose). В функции ```start_lab``` на основе файла формата .json, описывающего модель, создается файл ```footloose.yaml```, где хранится конфигурация контейнеров, далее контейнеры запускаются с помощью ```footloose create``` в функции ```fl_create```, вызываемой из ```start_lab```. Удаляются машины в функции ```stop_lab``` через ```footloose delete```.
+В [madt_lib/runtimes/docker_runtime.py](https://github.com/erveve/madt/blob/fl/madt_lib/runtimes/docker_runtime.py) были заменены процессы запуска контейнеров и их уничтожения с docker на footloose. (Для роутеров был сохранен запуск через docker из-за сложностей с quagga, в ветке fullfl запуск машин для всех узлов осуществялется через footloose, но там не всё работает). В функции ```start_lab``` на основе файла формата .json, описывающего модель, создается файл ```footloose.yaml```, где хранится конфигурация контейнеров, далее контейнеры запускаются с помощью ```footloose create``` в функции ```fl_create```, вызываемой из ```start_lab```. Удаляются машины в функции ```stop_lab``` через ```footloose delete```.
 
 ## Requirements:
 

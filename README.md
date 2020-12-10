@@ -19,9 +19,6 @@ You can combine part of the network (a set of nodes) into a subnet and define ru
 
 <img src="docs/_static/dynamic_routing.png" width="512">
 
-## Footloose
-В [madt_lib/runtimes/docker_runtime.py](https://github.com/erveve/madt/blob/fl/madt_lib/runtimes/docker_runtime.py) были заменены процессы запуска контейнеров и их уничтожения с docker на footloose. (Для роутеров был сохранен запуск через docker из-за сложностей с quagga, в ветке fullfl запуск осуществляется через footloose). В функции ```start_lab``` создается файл ```footloose.yaml```, где хранится конфигурация контейнеров, далее контейнеры запускаются с помощью ```footloose create```. Удаляются машины в функции ```stop_lab``` через ```footloose delete```.
-
 ## How to define the model
 
 We use madt_lib Python API to configure a model. It provides four classes for defining a network model:
@@ -32,6 +29,9 @@ We use madt_lib Python API to configure a model. It provides four classes for de
 * madt_lib.Network represents a wide or local area network. Each node, subnet or overlay of a network should be created only using its methods. A laboratory can have only one global network that can be used to create multiple local ones. 
 
 Basic example with simple server-client interaction is defined in [tutorial/basic](https://github.com/erveve/madt/blob/fl/tutorials/basic/) folder.
+
+## Footloose
+В [madt_lib/runtimes/docker_runtime.py](https://github.com/erveve/madt/blob/fl/madt_lib/runtimes/docker_runtime.py) были заменены процессы запуска контейнеров и их уничтожения с docker на footloose. (Для роутеров был сохранен запуск через docker из-за сложностей с quagga, в ветке fullfl - через footloose). В функции ```start_lab``` на основе файла формата .json, описывающего модель, создается файл ```footloose.yaml```, где хранится конфигурация контейнеров, далее контейнеры запускаются с помощью ```footloose create``` в функции ```fl_create```, вызываемой из ```start_lab```. Удаляются машины в функции ```stop_lab``` через ```footloose delete```.
 
 ## Requirements:
 
@@ -78,4 +78,7 @@ Basic example with simple server-client interaction is defined in [tutorial/basi
 - Open 127.0.0.1:80
 - Login as ```demo:demo```
 - Open lab
+- Restart lab
+- Observe graph
+- Change 
 

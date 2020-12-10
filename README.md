@@ -77,8 +77,18 @@ Basic example with simple server-client interaction is defined in [tutorial/basi
 ```
 - Open 127.0.0.1:80
 - Login as ```demo:demo```
-- Open lab
-- Restart lab
-- Observe graph
-- Change 
+- Choose one model in a list of all available models
 
+<img src="docs/_static/labs_list.png" width="512">
+
+- Run model and see a list of all containers working within the model at the bottom
+
+<img src="docs/_static/dr_containers.png" width="512">
+
+- Observe graph
+
+<img src="docs/_static/dr_graph.png" width="512">
+
+- Control the various different limitations of the container’s network connections in container page
+
+<img src="docs/_static/dr_control_panel.png" width="512">

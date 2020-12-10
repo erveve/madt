@@ -91,6 +91,6 @@ Basic example with simple server-client interaction is defined in [tutorial/basi
 
 - Control the various different limitations of the container’s network connections in container page
 
-<img src="docs/_static/dr_control_panel.png" width="512">
+<img src="docs/_static/dr_control_ panel.png" width="512">
 
-
+.
